@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:personal_application/Diary/notetaking.dart';
-import '../main.dart'; // Import main.dart to access NoteStorage
-
-// REMOVED: NoteStorage class (it should only be in main.dart)
+import '../main.dart';
 
 class Diaryscreen extends StatefulWidget {
   static const String id = "Diaryscreen";
@@ -15,9 +13,7 @@ class Diaryscreen extends StatefulWidget {
 class _DiaryscreenState extends State<Diaryscreen> {
   @override
   Widget build(BuildContext context) {
-    print(
-      'Building Diaryscreen with ${NoteStorage.notes.length} notes',
-    ); // Debug print
+    print('Building Diaryscreen with ${NoteStorage.notes.length} notes');
 
     return Scaffold(
       backgroundColor: const Color(0xFFA0D2EB),
@@ -65,19 +61,15 @@ class _DiaryscreenState extends State<Diaryscreen> {
       ),
       floatingActionButton: GestureDetector(
         onTap: () async {
-          print('FAB tapped, navigating to Notetaking'); // Debug print
+          print('FAB tapped, navigating to Notetaking');
 
-          // Navigate to Notetaking screen and wait for result
           final result = await Navigator.pushNamed(context, Notetaking.id);
 
-          print('Returned from Notetaking with result: $result'); // Debug print
+          print('Returned from Notetaking with result: $result');
 
-          // If a note was saved, refresh the screen
           if (result == true) {
-            print('Refreshing Diaryscreen'); // Debug print
-            setState(() {
-              // This will trigger a rebuild and show the new note
-            });
+            print('Refreshing Diaryscreen');
+            setState(() {});
           }
         },
         child: Container(

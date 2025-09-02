@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:personal_application/Diary/diaryScreen.dart';
 import 'package:personal_application/Diary/noteTaking.dart';
+import 'package:personal_application/Weather/weatherScreen.dart';
 
 import 'package:personal_application/authPage/LoginPage.dart';
 import 'package:personal_application/authPage/RegisterPage.dart';
@@ -26,6 +27,7 @@ class MyApp extends StatelessWidget {
         Diaryscreen.id: (context) => Diaryscreen(),
         BottomNav.id: (context) => BottomNav(),
         Notetaking.id: (context) => Notetaking(),
+        Weatherscreen.id: (context) => Weatherscreen(),
       },
       debugShowCheckedModeBanner: false,
     );
@@ -49,8 +51,8 @@ class NoteStorage {
       'date': date,
       'content': content,
     });
-    print('Note added: $title'); // Debug print
-    print('Total notes: ${_notes.length}'); // Debug print
+    print('Note added: $title');
+    print('Total notes: ${_notes.length}');
   }
 
   static void removeNote(int index) {

@@ -1,6 +1,3 @@
-// Create this as a separate file: note_storage.dart
-// Or add this class at the top of your main.dart file
-
 class NoteStorage {
   static List<Map<String, String>> _notes = [];
 

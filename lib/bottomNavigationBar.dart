@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:personal_application/Diary/diaryScreen.dart';
+import 'package:personal_application/Weather/weatherScreen.dart';
 
 class BottomNav extends StatefulWidget {
   static const String id = "BottomNav";
@@ -11,8 +12,8 @@ class _BottomNav extends State<BottomNav> {
   int _selectedIndex = 0;
   final List<Widget> _pages = [
     Diaryscreen(),
-    Center(child: Text("Diary Page", style: TextStyle(fontSize: 24))),
-    Center(child: Text("Weather Page", style: TextStyle(fontSize: 24))),
+    Weatherscreen(),
+    Center(child: Text("To-Do Page", style: TextStyle(fontSize: 24))),
     Center(child: Text("Logout Page", style: TextStyle(fontSize: 24))),
   ];
 
@@ -41,11 +42,11 @@ class _BottomNav extends State<BottomNav> {
             label: "Home",
           ),
           BottomNavigationBarItem(
-            icon: _buildBoxIcon(Icons.book, 1),
+            icon: _buildBoxIcon(Icons.cloud, 1),
             label: "Diary",
           ),
           BottomNavigationBarItem(
-            icon: _buildBoxIcon(Icons.cloud, 2),
+            icon: _buildBoxIcon(Icons.border_color, 2),
             label: "Weather",
           ),
           BottomNavigationBarItem(
