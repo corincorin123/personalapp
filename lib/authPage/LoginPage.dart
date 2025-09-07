@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:personal_application/Diary/diaryScreen.dart';
 import 'package:personal_application/authPage/RegisterPage.dart';
 import 'package:personal_application/bottomNavigationBar.dart';
 

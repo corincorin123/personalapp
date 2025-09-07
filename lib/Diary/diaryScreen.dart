@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:personal_application/Diary/notetaking.dart';
-import '../main.dart';
+import 'package:personal_application/Diary/note_storage.dart';
+import 'package:personal_application/Diary/noteTaking.dart';
 
 class Diaryscreen extends StatefulWidget {
   static const String id = "Diaryscreen";
@@ -11,10 +11,35 @@ class Diaryscreen extends StatefulWidget {
 }
 
 class _DiaryscreenState extends State<Diaryscreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotes();
+  }
+
+  Future<void> _loadNotes() async {
+    await NoteStorage.loadNotes();
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _deleteNote(int index) async {
+    await NoteStorage.removeNote(index);
+    setState(() {});
+  }
+
+  void _editNote(int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => Notetaking(noteIndex: index)),
+    ).then((_) => setState(() {}));
+  }
+
   @override
   Widget build(BuildContext context) {
-    print('Building Diaryscreen with ${NoteStorage.notes.length} notes');
-
     return Scaffold(
       backgroundColor: const Color(0xFFA0D2EB),
       appBar: AppBar(
@@ -30,47 +55,47 @@ class _DiaryscreenState extends State<Diaryscreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: NoteStorage.notes.isEmpty
-            ? const Center(
-                child: Text(
-                  'No notes yet. Tap the + button to create your first note!',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-              )
-            : GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20,
-                  childAspectRatio: 0.7,
-                ),
-                itemCount: NoteStorage.notes.length,
-                itemBuilder: (context, index) {
-                  final note = NoteStorage.notes[index];
-                  return HistoryNoteCard(
-                    title: note['title'] ?? 'Untitled',
-                    date: note['date'] ?? 'No date',
-                    name: note['name'] ?? 'No name',
-                    isSelected: index == 0,
-                  );
-                },
-              ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: NoteStorage.notes.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No notes yet. Tap the + button to create your first note!',
+                        style: TextStyle(fontSize: 16, color: Colors.black54),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 20,
+                            mainAxisSpacing: 20,
+                            childAspectRatio: 0.7,
+                          ),
+                      itemCount: NoteStorage.notes.length,
+                      itemBuilder: (context, index) {
+                        final note = NoteStorage.notes[index];
+                        return GestureDetector(
+                          onTap: () => _editNote(index),
+                          child: HistoryNoteCard(
+                            title: note.title,
+                            date: note.date,
+                            name: note.name,
+                            onDelete: () => _deleteNote(index),
+                          ),
+                        );
+                      },
+                    ),
+            ),
       floatingActionButton: GestureDetector(
-        onTap: () async {
-          print('FAB tapped, navigating to Notetaking');
-
-          final result = await Navigator.pushNamed(context, Notetaking.id);
-
-          print('Returned from Notetaking with result: $result');
-
-          if (result == true) {
-            print('Refreshing Diaryscreen');
-            setState(() {});
-          }
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const Notetaking()),
+          ).then((_) => setState(() {}));
         },
         child: Container(
           width: 60,
@@ -91,14 +116,14 @@ class HistoryNoteCard extends StatelessWidget {
   final String title;
   final String date;
   final String name;
-  final bool isSelected;
+  final VoidCallback onDelete;
 
   const HistoryNoteCard({
     super.key,
     required this.title,
     required this.date,
     required this.name,
-    this.isSelected = false,
+    required this.onDelete,
   });
 
   @override
@@ -112,9 +137,6 @@ class HistoryNoteCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
-              border: isSelected
-                  ? Border.all(color: Colors.purple, width: 3)
-                  : null,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,6 +159,15 @@ class HistoryNoteCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const Spacer(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: onDelete,
+                    ),
+                  ],
+                ),
                 Text(
                   date,
                   style: const TextStyle(fontSize: 11, color: Colors.black45),

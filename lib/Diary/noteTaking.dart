@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-
-import '../main.dart';
-
-// IMPORTANT: Remove the NoteStorage class from this file if you have it
-// The NoteStorage should only exist in your main.dart file
+import 'package:personal_application/Diary/note_storage.dart';
 
 class Notetaking extends StatefulWidget {
-  static const String id = "Notetaking";
-  const Notetaking({super.key});
+  final int? noteIndex;
+
+  const Notetaking({super.key, this.noteIndex});
 
   @override
   State<Notetaking> createState() => _NotetakingState();
@@ -19,13 +16,20 @@ class _NotetakingState extends State<Notetaking> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
 
-  bool _isLoading = false; // Add loading state
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Set today's date by default
-    _dateController.text = _getCurrentDate();
+    if (widget.noteIndex != null) {
+      final note = NoteStorage.notes[widget.noteIndex!];
+      _nameController.text = note.name;
+      _dateController.text = note.date;
+      _titleController.text = note.title;
+      _contentController.text = note.content;
+    } else {
+      _dateController.text = _getCurrentDate();
+    }
   }
 
   @override
@@ -57,10 +61,7 @@ class _NotetakingState extends State<Notetaking> {
   }
 
   Future<void> _saveNote() async {
-    print('Save button pressed'); // Debug print
-
     if (_titleController.text.trim().isEmpty) {
-      print('Title is empty, showing error'); // Debug print
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a title for your note'),
@@ -70,21 +71,12 @@ class _NotetakingState extends State<Notetaking> {
       return;
     }
 
-    // Start loading
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Simulate some processing time (like saving to database)
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Add the note using NoteStorage
-      print(
-        'Adding note with title: ${_titleController.text.trim()}',
-      ); // Debug print
-
-      NoteStorage.addNote(
+      final note = Note(
         title: _titleController.text.trim(),
         name: _nameController.text.trim().isEmpty
             ? 'Anonymous'
@@ -93,7 +85,11 @@ class _NotetakingState extends State<Notetaking> {
         content: _contentController.text.trim(),
       );
 
-      print('Note added successfully'); // Debug print
+      if (widget.noteIndex != null) {
+        await NoteStorage.updateNote(widget.noteIndex!, note);
+      } else {
+        await NoteStorage.addNote(note);
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -102,11 +98,8 @@ class _NotetakingState extends State<Notetaking> {
         ),
       );
 
-      // Navigate back and indicate that a note was saved
-      print('Navigating back'); // Debug print
-      Navigator.pop(context, true);
+      Navigator.pop(context);
     } catch (e) {
-      // Handle any errors
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: $e'),
@@ -114,7 +107,6 @@ class _NotetakingState extends State<Notetaking> {
         ),
       );
     } finally {
-      // Stop loading
       setState(() {
         _isLoading = false;
       });
@@ -130,12 +122,7 @@ class _NotetakingState extends State<Notetaking> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: _isLoading
-              ? null
-              : () {
-                  print('Back button pressed'); // Debug print
-                  Navigator.pop(context);
-                },
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
         ),
         actions: [
           _isLoading
@@ -166,7 +153,7 @@ class _NotetakingState extends State<Notetaking> {
       body: Stack(
         children: [
           AbsorbPointer(
-            absorbing: _isLoading, // Disable interaction during loading
+            absorbing: _isLoading,
             child: Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
@@ -198,7 +185,6 @@ class _NotetakingState extends State<Notetaking> {
                     ],
                   ),
                   const SizedBox(height: 40),
-
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 15,
@@ -237,7 +223,6 @@ class _NotetakingState extends State<Notetaking> {
                     ),
                   ),
                   const SizedBox(height: 30),
-
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(15),
@@ -263,7 +248,6 @@ class _NotetakingState extends State<Notetaking> {
               ),
             ),
           ),
-          // Full-screen loading overlay
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.3),
