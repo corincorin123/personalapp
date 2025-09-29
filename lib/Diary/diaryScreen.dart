@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:personal_application/Diary/note_storage.dart';
 import 'package:personal_application/Diary/noteTaking.dart';
+import 'package:personal_application/utils/responsive_helper.dart';
 
 class Diaryscreen extends StatefulWidget {
   static const String id = "Diaryscreen";
@@ -11,31 +13,32 @@ class Diaryscreen extends StatefulWidget {
 }
 
 class _DiaryscreenState extends State<Diaryscreen> {
-  bool _isLoading = true;
+  final DiaryService _diaryService = DiaryService();
 
-  @override
-  void initState() {
-    super.initState();
-    _loadNotes();
+  Future<void> _deleteNote(String docId) async {
+    try {
+      await _diaryService.deleteNote(docId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Note deleted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting note: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  Future<void> _loadNotes() async {
-    await NoteStorage.loadNotes();
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _deleteNote(int index) async {
-    await NoteStorage.removeNote(index);
-    setState(() {});
-  }
-
-  void _editNote(int index) {
+  void _editNote(Note note) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => Notetaking(noteIndex: index)),
-    ).then((_) => setState(() {}));
+      MaterialPageRoute(builder: (context) => Notetaking(note: note)),
+    );
   }
 
   @override
@@ -43,69 +46,174 @@ class _DiaryscreenState extends State<Diaryscreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFA0D2EB),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'History',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
-            fontSize: 28,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 28),
           ),
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: NoteStorage.notes.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No notes yet. Tap the + button to create your first note!',
-                        style: TextStyle(fontSize: 16, color: Colors.black54),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 20,
-                            mainAxisSpacing: 20,
-                            childAspectRatio: 0.7,
-                          ),
-                      itemCount: NoteStorage.notes.length,
-                      itemBuilder: (context, index) {
-                        final note = NoteStorage.notes[index];
-                        return GestureDetector(
-                          onTap: () => _editNote(index),
-                          child: HistoryNoteCard(
-                            title: note.title,
-                            date: note.date,
-                            name: note.name,
-                            onDelete: () => _deleteNote(index),
-                          ),
-                        );
-                      },
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _diaryService.getNotesStream(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: ResponsiveHelper.getResponsivePadding(context),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_off,
+                      size: ResponsiveHelper.getResponsiveIconSize(context, 80),
+                      color: Colors.grey[400],
                     ),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        16,
+                      ),
+                    ),
+                    Text(
+                      'Connection Error',
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(
+                          context,
+                          20,
+                        ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(context, 8),
+                    ),
+                    Text(
+                      'Unable to connect to the server.\nPlease check your internet connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(
+                          context,
+                          14,
+                        ),
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        16,
+                      ),
+                    ),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveButtonHeight(
+                        context,
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () => setState(() {}),
+                        child: Text(
+                          'Retry',
+                          style: TextStyle(
+                            fontSize: ResponsiveHelper.getResponsiveFontSize(
+                              context,
+                              16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final notes = snapshot.data?.docs ?? [];
+
+          if (notes.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: ResponsiveHelper.getResponsivePadding(context),
+                child: Text(
+                  'No notes yet. Tap the + button to create your first note!',
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      16,
+                    ),
+                    color: Colors.black54,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          return Padding(
+            padding: ResponsiveHelper.getResponsivePadding(context),
+            child: GridView.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: ResponsiveHelper.getGridCrossAxisCount(context),
+                crossAxisSpacing: ResponsiveHelper.getResponsiveSpacing(
+                  context,
+                  20,
+                ),
+                mainAxisSpacing: ResponsiveHelper.getResponsiveSpacing(
+                  context,
+                  20,
+                ),
+                childAspectRatio: ResponsiveHelper.getGridChildAspectRatio(
+                  context,
+                ),
+              ),
+              itemCount: notes.length,
+              itemBuilder: (context, index) {
+                final noteDoc = notes[index];
+                final note = Note.fromFirestore(noteDoc);
+
+                return GestureDetector(
+                  onTap: () => _editNote(note),
+                  child: HistoryNoteCard(
+                    title: note.title,
+                    date: note.date,
+                    name: note.name,
+                    onDelete: () => _deleteNote(note.id!),
+                  ),
+                );
+              },
             ),
+          );
+        },
+      ),
       floatingActionButton: GestureDetector(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const Notetaking()),
-          ).then((_) => setState(() {}));
+          );
         },
         child: Container(
-          width: 60,
-          height: 60,
+          width: ResponsiveHelper.getResponsiveFABSize(context),
+          height: ResponsiveHelper.getResponsiveFABSize(context),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border.all(color: Colors.black, width: 1.5),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.edit_outlined, color: Colors.black, size: 32),
+          child: Icon(
+            Icons.edit_outlined,
+            color: Colors.black,
+            size: ResponsiveHelper.getResponsiveIconSize(context, 32),
+          ),
         ),
       ),
     );
@@ -133,7 +241,12 @@ class HistoryNoteCard extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: ResponsiveHelper.getResponsivePadding(context).copyWith(
+              top: ResponsiveHelper.getResponsiveSpacing(context, 12),
+              bottom: ResponsiveHelper.getResponsiveSpacing(context, 12),
+              left: ResponsiveHelper.getResponsiveSpacing(context, 12),
+              right: ResponsiveHelper.getResponsiveSpacing(context, 12),
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
@@ -143,18 +256,29 @@ class HistoryNoteCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      16,
+                    ),
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                SizedBox(
+                  height: ResponsiveHelper.getResponsiveSpacing(context, 8),
+                ),
                 Text(
                   'By: $name',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      12,
+                    ),
+                    color: Colors.black54,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -163,32 +287,51 @@ class HistoryNoteCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
+                      icon: Icon(
+                        Icons.delete,
+                        color: Colors.red,
+                        size: ResponsiveHelper.getResponsiveIconSize(
+                          context,
+                          20,
+                        ),
+                      ),
                       onPressed: onDelete,
                     ),
                   ],
                 ),
                 Text(
                   date,
-                  style: const TextStyle(fontSize: 11, color: Colors.black45),
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      11,
+                    ),
+                    color: Colors.black45,
+                  ),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: ResponsiveHelper.getResponsiveSpacing(context, 10)),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 14),
             fontWeight: FontWeight.w500,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 4),
-        Text(date, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+        SizedBox(height: ResponsiveHelper.getResponsiveSpacing(context, 4)),
+        Text(
+          date,
+          style: TextStyle(
+            color: Colors.black54,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(context, 12),
+          ),
+        ),
       ],
     );
   }

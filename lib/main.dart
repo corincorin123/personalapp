@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:personal_application/Diary/diaryScreen.dart';
 import 'package:personal_application/Weather/weatherScreen.dart';
 
@@ -6,7 +7,16 @@ import 'package:personal_application/authPage/LoginPage.dart';
 import 'package:personal_application/authPage/RegisterPage.dart';
 import 'package:personal_application/bottomNavigationBar.dart';
 
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const MyApp());
 }
 

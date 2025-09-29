@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:personal_application/Diary/diaryScreen.dart';
 import 'package:personal_application/Weather/weatherScreen.dart';
+import 'package:personal_application/To-Do/to_do_screen.dart';
+import 'package:personal_application/logout/logout.dart';
 
 class BottomNav extends StatefulWidget {
   static const String id = "BottomNav";
@@ -13,8 +15,8 @@ class _BottomNav extends State<BottomNav> {
   final List<Widget> _pages = [
     Diaryscreen(),
     Weatherscreen(),
-    Center(child: Text("To-Do Page", style: TextStyle(fontSize: 24))),
-    Center(child: Text("Logout Page", style: TextStyle(fontSize: 24))),
+    ToDoScreen(),
+    Logout(),
   ];
 
   void _onItemTapped(int index) {

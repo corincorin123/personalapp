@@ -1,10 +1,112 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:personal_application/authPage/LoginPage.dart';
+import 'package:personal_application/authPage/auth_service.dart';
+import 'package:personal_application/bottomNavigationBar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class Registerpage extends StatelessWidget {
+class Registerpage extends StatefulWidget {
   static const String id = 'Registerpage';
   const Registerpage({super.key});
+
+  @override
+  State<Registerpage> createState() => _RegisterpageState();
+}
+
+class _RegisterpageState extends State<Registerpage> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _createAccount() async {
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _usernameController.text.isEmpty ||
+        _phoneController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all required fields')),
+      );
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      int phoneNumber = 0;
+      if (_phoneController.text.isNotEmpty) {
+        phoneNumber = int.tryParse(_phoneController.text) ?? 0;
+      }
+
+      UserCredential userCredential = await Service.value.createAccount(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        PhoneNumber: phoneNumber,
+      );
+
+      if (userCredential.user != null) {
+        await userCredential.user!.updateDisplayName(
+          _usernameController.text.trim(),
+        );
+      }
+
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, BottomNav.id);
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'The password provided is too weak.';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'The account already exists for that email.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'The email address is not valid.';
+          break;
+        default:
+          errorMessage = 'Registration failed. Please try again.';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('An unexpected error occurred')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +152,7 @@ class Registerpage extends StatelessWidget {
                     SizedBox(
                       height: 40,
                       child: TextField(
+                        controller: _usernameController,
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.white.withOpacity(0.3),
@@ -90,6 +193,8 @@ class Registerpage extends StatelessWidget {
                     SizedBox(
                       height: 40,
                       child: TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.white.withOpacity(0.3),
@@ -130,6 +235,7 @@ class Registerpage extends StatelessWidget {
                     SizedBox(
                       height: 40,
                       child: TextField(
+                        controller: _passwordController,
                         obscureText: true,
                         decoration: InputDecoration(
                           filled: true,
@@ -157,7 +263,7 @@ class Registerpage extends StatelessWidget {
 
                     SizedBox(height: 20),
                     Text(
-                      'CONTACT NUMBER:',
+                      'CONTACT NUMBER: *',
                       style: TextStyle(
                         fontFamily: 'Montserrat',
                         color: Colors.white,
@@ -170,6 +276,7 @@ class Registerpage extends StatelessWidget {
                     SizedBox(
                       height: 40,
                       child: TextField(
+                        controller: _phoneController,
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
@@ -203,7 +310,7 @@ class Registerpage extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: () {},
+                        onPressed: _isLoading ? null : _createAccount,
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: Colors.white, width: 2),
                           shape: RoundedRectangleBorder(
@@ -212,13 +319,15 @@ class Registerpage extends StatelessWidget {
                           padding: EdgeInsets.symmetric(vertical: 14),
                           foregroundColor: Colors.white,
                         ),
-                        child: Text(
-                          'Register',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                'Register',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
 
