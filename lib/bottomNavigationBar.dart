@@ -12,6 +12,8 @@ class BottomNav extends StatefulWidget {
 
 class _BottomNav extends State<BottomNav> {
   int _selectedIndex = 0;
+  DateTime? _lastBackPressed;
+
   final List<Widget> _pages = [
     Diaryscreen(),
     Weatherscreen(),
@@ -25,37 +27,75 @@ class _BottomNav extends State<BottomNav> {
     });
   }
 
+  Future<bool> _onWillPop() async {
+    final now = DateTime.now();
+    const maxDuration = Duration(seconds: 2);
+    final isWarning =
+        _lastBackPressed == null ||
+        now.difference(_lastBackPressed!) > maxDuration;
+
+    if (isWarning) {
+      _lastBackPressed = now;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Press back again to exit the app',
+            style: TextStyle(color: Colors.white),
+          ),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.black87,
+        ),
+      );
+
+      return false;
+    }
+
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        backgroundColor: Colors.lightBlue[300],
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: [
-          BottomNavigationBarItem(
-            icon: _buildBoxIcon(Icons.book, 0),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: _buildBoxIcon(Icons.cloud, 1),
-            label: "Diary",
-          ),
-          BottomNavigationBarItem(
-            icon: _buildBoxIcon(Icons.border_color, 2),
-            label: "Weather",
-          ),
-          BottomNavigationBarItem(
-            icon: _buildBoxIcon(Icons.person, 3),
-            label: "Logout",
-          ),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        body: _pages[_selectedIndex],
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          backgroundColor: Colors.lightBlue[300],
+          selectedItemColor: Colors.black,
+          unselectedItemColor: Colors.black,
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+          items: [
+            BottomNavigationBarItem(
+              icon: _buildBoxIcon(Icons.book, 0),
+              label: "Home",
+            ),
+            BottomNavigationBarItem(
+              icon: _buildBoxIcon(Icons.cloud, 1),
+              label: "Diary",
+            ),
+            BottomNavigationBarItem(
+              icon: _buildBoxIcon(Icons.border_color, 2),
+              label: "Weather",
+            ),
+            BottomNavigationBarItem(
+              icon: _buildBoxIcon(Icons.person, 3),
+              label: "Logout",
+            ),
+          ],
+        ),
       ),
     );
   }

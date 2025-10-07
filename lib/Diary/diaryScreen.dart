@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:personal_application/Diary/note_storage.dart';
+import 'package:personal_application/Databases/note_storage.dart';
 import 'package:personal_application/Diary/noteTaking.dart';
 import 'package:personal_application/utils/responsive_helper.dart';
 
@@ -31,6 +31,36 @@ class _DiaryscreenState extends State<Diaryscreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _confirmAndDeleteNote(String docId, String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete note?'),
+        content: Text(
+          'Are you sure you want to delete "${title.isEmpty ? 'this note' : title}"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _deleteNote(docId);
     }
   }
 
@@ -186,7 +216,7 @@ class _DiaryscreenState extends State<Diaryscreen> {
                     title: note.title,
                     date: note.date,
                     name: note.name,
-                    onDelete: () => _deleteNote(note.id!),
+                    onDelete: () => _confirmAndDeleteNote(note.id!, note.title),
                   ),
                 );
               },

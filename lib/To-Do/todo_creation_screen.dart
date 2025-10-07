@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:personal_application/To-Do/todo_storage.dart';
+import 'package:personal_application/Databases/todo_storage.dart';
 
 class TodoCreationScreen extends StatefulWidget {
   final int? todoListIndex;
@@ -310,172 +310,182 @@ class _TodoCreationScreenState extends State<TodoCreationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFA0D2EB),
-      appBar: AppBar(
-        title: Text(
-          widget.todoListIndex != null
-              ? 'Edit Checklist'
-              : 'New Self-Care Checklist',
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        if (_isLoading) return;
+
+        // Always go back to the main app, not login
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFA0D2EB),
+        appBar: AppBar(
+          title: Text(
+            widget.todoListIndex != null
+                ? 'Edit Checklist'
+                : 'New Self-Care Checklist',
+            style: const TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
+          ),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
           ),
         ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 1,
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'CHECKLIST DETAILS',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Checklist Name',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _nameController,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter checklist name...',
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Date',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _dateController,
+                                decoration: InputDecoration(
+                                  hintText: 'DD/MM/YYYY',
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.calendar_today,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'CHECKLIST DETAILS',
-                          style: TextStyle(
-                            fontSize: 18,
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: GridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.8,
+                        children: [
+                          _buildTodoList(1),
+                          _buildTodoList(2),
+                          _buildTodoList(3),
+                          _buildTodoList(4),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _saveTodoList,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF64B5F6),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          widget.todoListIndex != null
+                              ? 'Update Checklist'
+                              : 'Save Checklist',
+                          style: const TextStyle(
+                            fontSize: 17,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
                             letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Checklist Name',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                hintText: 'Enter checklist name...',
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Date',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _dateController,
-                              decoration: InputDecoration(
-                                hintText: 'DD/MM/YYYY',
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.calendar_today,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.8,
-                      children: [
-                        _buildTodoList(1),
-                        _buildTodoList(2),
-                        _buildTodoList(3),
-                        _buildTodoList(4),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saveTodoList,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF64B5F6),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: Text(
-                        widget.todoListIndex != null
-                            ? 'Update Checklist'
-                            : 'Save Checklist',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-    );
+      ), // End of PopScope child Scaffold
+    ); // End of PopScope
   }
 }

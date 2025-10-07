@@ -51,6 +51,35 @@ class _Logout extends State<Logout> {
     }
   }
 
+  Future<void> _confirmAndSignOut() async {
+    if (_isLoading) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _signOut();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,7 +118,7 @@ class _Logout extends State<Logout> {
                 borderRadius: BorderRadius.circular(25),
               ),
               child: TextButton(
-                onPressed: _isLoading ? null : _signOut,
+                onPressed: _isLoading ? null : _confirmAndSignOut,
                 child: _isLoading
                     ? const CircularProgressIndicator(
                         color: Colors.black,

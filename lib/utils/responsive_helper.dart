@@ -26,7 +26,6 @@ class ResponsiveHelper {
     return MediaQuery.of(context).size.height;
   }
 
-  // Get responsive padding based on screen size
   static EdgeInsets getResponsivePadding(BuildContext context) {
     if (isDesktop(context)) {
       return const EdgeInsets.all(32.0);
@@ -37,7 +36,6 @@ class ResponsiveHelper {
     }
   }
 
-  // Get responsive font size
   static double getResponsiveFontSize(
     BuildContext context,
     double baseFontSize,
@@ -51,21 +49,19 @@ class ResponsiveHelper {
     return baseFontSize;
   }
 
-  // Get grid cross axis count based on screen size
   static int getGridCrossAxisCount(BuildContext context) {
     double screenWidth = getScreenWidth(context);
     if (screenWidth > 1200) {
-      return 4; // Desktop: 4 columns
+      return 4;
     } else if (screenWidth > 900) {
-      return 3; // Large tablet: 3 columns
+      return 3;
     } else if (screenWidth > 600) {
-      return 2; // Tablet: 2 columns
+      return 2;
     } else {
-      return 2; // Mobile: 2 columns
+      return 2;
     }
   }
 
-  // Get responsive child aspect ratio for grid
   static double getGridChildAspectRatio(BuildContext context) {
     if (isDesktop(context)) {
       return 0.8;
@@ -76,7 +72,6 @@ class ResponsiveHelper {
     }
   }
 
-  // Get responsive spacing
   static double getResponsiveSpacing(BuildContext context, double baseSpacing) {
     if (isDesktop(context)) {
       return baseSpacing * 1.5;
@@ -86,7 +81,6 @@ class ResponsiveHelper {
     return baseSpacing;
   }
 
-  // Get maximum content width (for web/desktop)
   static double getMaxContentWidth(BuildContext context) {
     if (isDesktop(context)) {
       return 1200;
@@ -96,7 +90,6 @@ class ResponsiveHelper {
     return double.infinity;
   }
 
-  // Get responsive icon size
   static double getResponsiveIconSize(BuildContext context, double baseSize) {
     if (isDesktop(context)) {
       return baseSize * 1.3;
@@ -106,7 +99,6 @@ class ResponsiveHelper {
     return baseSize;
   }
 
-  // Get responsive button height
   static double getResponsiveButtonHeight(BuildContext context) {
     if (isDesktop(context)) {
       return 56;
@@ -116,7 +108,6 @@ class ResponsiveHelper {
     return 48;
   }
 
-  // Get responsive FAB size
   static double getResponsiveFABSize(BuildContext context) {
     if (isDesktop(context)) {
       return 70;

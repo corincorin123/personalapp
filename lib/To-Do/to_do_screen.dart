@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:personal_application/To-Do/todo_storage.dart';
+import 'package:personal_application/Databases/todo_storage.dart';
 import 'package:personal_application/To-Do/todo_creation_screen.dart';
 
 class ToDoScreen extends StatefulWidget {
@@ -26,8 +26,34 @@ class _ToDoScreenState extends State<ToDoScreen> {
   }
 
   Future<void> _deleteTodoList(int index) async {
-    await TodoStorage.removeTodoList(index);
-    setState(() {});
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete checklist?'),
+        content: const Text(
+          'This will permanently remove the checklist. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await TodoStorage.removeTodoList(index);
+      if (mounted) setState(() {});
+    }
   }
 
   void _editTodoList(int index) {

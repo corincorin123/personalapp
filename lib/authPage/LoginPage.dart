@@ -113,7 +113,6 @@ class _LoginpageState extends State<Loginpage> {
 
     String input = _emailController.text.trim();
 
-    // Check if input is a phone number
     if (_isPhoneNumber(input)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -125,7 +124,6 @@ class _LoginpageState extends State<Loginpage> {
       return;
     }
 
-    // Validate email format
     if (!_isValidEmail(input)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid email address')),
