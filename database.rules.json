@@ -1,0 +1,36 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        "todo_lists": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid",
+          ".indexOn": ["timestamp"],
+          "$listId": {
+            ".read": "auth != null && auth.uid == $uid",
+            ".write": "auth != null && auth.uid == $uid",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            },
+            "date": {
+              ".validate": "newData.isString() && newData.val().length <= 50"
+            },
+            "createdAt": {
+              ".validate": "newData.isString()"
+            },
+            "timestamp": {
+              ".validate": "newData.isNumber() || newData.val() == null"
+            },
+            "items": {
+              ".validate": "newData.hasChildren()"
+            }
+          }
+        }
+      }
+    }
+  }
+}

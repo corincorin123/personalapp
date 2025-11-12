@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:personal_application/Databases/todo_storage.dart';
 import 'package:personal_application/To-Do/todo_creation_screen.dart';
 
@@ -11,6 +12,11 @@ class ToDoScreen extends StatefulWidget {
 
 class _ToDoScreenState extends State<ToDoScreen> {
   bool _isLoading = true;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    TodoStorage.startRealtimeSync();
+  }
 
   @override
   void initState() {
@@ -19,10 +25,36 @@ class _ToDoScreenState extends State<ToDoScreen> {
   }
 
   Future<void> _loadTodoLists() async {
-    await TodoStorage.loadTodoLists();
-    setState(() {
-      _isLoading = false;
-    });
+    try {
+      await TodoStorage.loadTodoLists();
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        final code = e.code.isNotEmpty ? e.code : 'unknown';
+        final msg = e.message ?? '';
+        final text = msg.isNotEmpty ? '$code: $msg' : code;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load checklists: $text')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load checklists: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    TodoStorage.stopRealtimeSync();
+    super.dispose();
   }
 
   Future<void> _deleteTodoList(int index) async {
@@ -103,9 +135,12 @@ class _ToDoScreenState extends State<ToDoScreen> {
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: TodoStorage.todoLists.isEmpty
-                    ? const Center(
-                        child: Column(
+                child: ValueListenableBuilder<List<TodoList>>(
+                  valueListenable: TodoStorage.todoListsListenable,
+                  builder: (context, lists, _) {
+                    return lists.isEmpty
+                        ? const Center(
+                            child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
@@ -132,36 +167,37 @@ class _ToDoScreenState extends State<ToDoScreen> {
                               textAlign: TextAlign.center,
                             ),
                           ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: TodoStorage.todoLists.length,
-                        itemBuilder: (context, index) {
-                          final todoList = TodoStorage.todoLists[index];
-                          final completedCount = _getCompletedItemsCount(
-                            todoList.items,
-                          );
-                          final totalCount = todoList.items.length;
-                          final completionPercentage = _getCompletionPercentage(
-                            todoList.items,
-                          );
+                        ))
+                        : ListView.builder(
+                            itemCount: lists.length,
+                            itemBuilder: (context, index) {
+                              final todoList = lists[index];
+                              final completedCount = _getCompletedItemsCount(
+                                todoList.items,
+                              );
+                              final totalCount = todoList.items.length;
+                              final completionPercentage = _getCompletionPercentage(
+                                todoList.items,
+                              );
 
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: GestureDetector(
-                              onTap: () => _editTodoList(index),
-                              child: TodoListCard(
-                                name: todoList.name,
-                                date: todoList.date,
-                                completedTasks: completedCount,
-                                totalTasks: totalCount,
-                                completionPercentage: completionPercentage,
-                                onDelete: () => _deleteTodoList(index),
-                              ),
-                            ),
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: GestureDetector(
+                                  onTap: () => _editTodoList(index),
+                                  child: TodoListCard(
+                                    name: todoList.name,
+                                    date: todoList.date,
+                                    completedTasks: completedCount,
+                                    totalTasks: totalCount,
+                                    completionPercentage: completionPercentage,
+                                    onDelete: () => _deleteTodoList(index),
+                                  ),
+                                ),
+                              );
+                            },
                           );
-                        },
-                      ),
+                  },
+                ),
               ),
             ),
       floatingActionButton: GestureDetector(

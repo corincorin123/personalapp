@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 class TodoItem {
   final String id;
@@ -92,6 +95,14 @@ class TodoList {
     'timestamp': FieldValue.serverTimestamp(),
   };
 
+  Map<String, dynamic> toRealtimeMap() => {
+    'name': name,
+    'date': date,
+    'items': items.map((item) => item.toMap()).toList(),
+    'createdAt': createdAt.toIso8601String(),
+    'timestamp': ServerValue.timestamp,
+  };
+
   factory TodoList.fromFirestore(Map<String, dynamic> data) {
     final rawCreated = data['createdAt'];
     DateTime created;
@@ -116,14 +127,44 @@ class TodoList {
       createdAt: created,
     );
   }
+
+  factory TodoList.fromRealtime(Map<String, dynamic> data) {
+    final rawCreated = data['createdAt'];
+    DateTime created;
+    if (rawCreated is String) {
+      created = DateTime.tryParse(rawCreated) ?? DateTime.now();
+    } else {
+      created = DateTime.now();
+    }
+
+    final itemsRaw = (data['items'] as List?) ?? const [];
+    final items = itemsRaw
+        .whereType<Map<String, dynamic>>()
+        .map((e) => TodoItem.fromMap(e))
+        .toList();
+
+    return TodoList(
+      name: data['name'] as String? ?? '',
+      date: data['date'] as String? ?? '',
+      items: items,
+      createdAt: created,
+    );
+  }
 }
 
 class TodoStorage {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String _databaseUrl = 'https://personalapp-b6dee-default-rtdb.firebaseio.com';
+  static final FirebaseDatabase _rtdb = FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL: _databaseUrl);
 
   static final List<TodoList> _todoLists = <TodoList>[];
   static final List<String> _docIds = <String>[];
+  static final ValueNotifier<List<TodoList>> todoListsNotifier =
+      ValueNotifier<List<TodoList>>(<TodoList>[]);
+  static ValueListenable<List<TodoList>> get todoListsListenable => todoListsNotifier;
+  static StreamSubscription<dynamic>? _subscription;
+  static TodoBackend? _backendOverride;
 
   static List<TodoList> get todoLists => List.unmodifiable(_todoLists);
 
@@ -138,30 +179,70 @@ class TodoStorage {
         .collection('todo_lists');
   }
 
+  static DatabaseReference _userTodoRef() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Please log in first');
+    }
+    return _rtdb.ref('users/${user.uid}/todo_lists');
+  }
+
   static Future<void> loadTodoLists() async {
     try {
-      final query = await _userTodoCollection()
-          .orderBy('timestamp', descending: true)
-          .get();
+      Map<String, TodoList> listsById;
+      if (_backendOverride != null) {
+        listsById = await _backendOverride!.load();
+      } else {
+        final snap = await _userTodoRef().orderByChild('timestamp').get();
+        listsById = <String, TodoList>{};
+        for (final child in snap.children) {
+          final key = child.key;
+          final value = child.value;
+          if (key != null && value is Map<dynamic, dynamic>) {
+            final data = Map<String, dynamic>.from(value);
+            listsById[key] = TodoList.fromRealtime(data);
+          }
+        }
+
+        if (listsById.isEmpty) {
+          final fallback = await _loadFromFirestore();
+          if (fallback.isNotEmpty) {
+            await _migrateFromFirestoreToRealtime(fallback);
+            listsById.addAll(fallback);
+          }
+        }
+      }
 
       _todoLists
         ..clear()
-        ..addAll(query.docs.map((d) => TodoList.fromFirestore(d.data())));
+        ..addAll(listsById.values.toList());
       _docIds
         ..clear()
-        ..addAll(query.docs.map((d) => d.id));
+        ..addAll(listsById.keys.toList());
+      todoListsNotifier.value = List.unmodifiable(_todoLists);
+    } on FirebaseException catch (e) {
+      _todoLists.clear();
+      _docIds.clear();
+      todoListsNotifier.value = const <TodoList>[];
+      throw e;
     } catch (_) {
       _todoLists.clear();
       _docIds.clear();
+      todoListsNotifier.value = const <TodoList>[];
     }
   }
 
   static Future<void> addTodoList(TodoList todoList) async {
     try {
-      await _userTodoCollection().add(todoList.toFirestore());
+      if (_backendOverride != null) {
+        // create uses backend override
+        await _backendOverride!.add(todoList);
+      } else {
+        await _userTodoRef().push().set(todoList.toRealtimeMap());
+      }
       await loadTodoLists();
     } on FirebaseException catch (e) {
-      throw Exception('Failed to add todo list: ${e.message}');
+      throw Exception(_mapDatabaseError(e));
     } catch (e) {
       throw Exception(
         'Connection error. Please check your internet connection and try again.',
@@ -173,10 +254,14 @@ class TodoStorage {
     if (index < 0 || index >= _docIds.length) return;
     final docId = _docIds[index];
     try {
-      await _userTodoCollection().doc(docId).update(todoList.toFirestore());
+      if (_backendOverride != null) {
+        await _backendOverride!.update(docId, todoList);
+      } else {
+        await _userTodoRef().child(docId).update(todoList.toRealtimeMap());
+      }
       await loadTodoLists();
     } on FirebaseException catch (e) {
-      throw Exception('Failed to update todo list: ${e.message}');
+      throw Exception(_mapDatabaseError(e));
     } catch (e) {
       throw Exception(
         'Connection error. Please check your internet connection and try again.',
@@ -188,9 +273,14 @@ class TodoStorage {
     if (index < 0 || index >= _docIds.length) return;
     final docId = _docIds[index];
     try {
-      await _userTodoCollection().doc(docId).delete();
+      if (_backendOverride != null) {
+        await _backendOverride!.remove(docId);
+      } else {
+        await _userTodoRef().child(docId).remove();
+      }
       _todoLists.removeAt(index);
       _docIds.removeAt(index);
+      todoListsNotifier.value = List.unmodifiable(_todoLists);
     } catch (_) {}
   }
 
@@ -206,29 +296,119 @@ class TodoStorage {
 
     final updatedList = todoList.copyWith(items: updatedItems);
     _todoLists[listIndex] = updatedList;
+    todoListsNotifier.value = List.unmodifiable(_todoLists);
 
     if (listIndex < 0 || listIndex >= _docIds.length) return;
     final docId = _docIds[listIndex];
     try {
-      await _userTodoCollection().doc(docId).update({
-        'items': updatedItems.map((e) => e.toMap()).toList(),
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      if (_backendOverride != null) {
+        await _backendOverride!.updateItems(
+          docId,
+          updatedItems.map((e) => e.toMap()).toList(),
+        );
+      } else {
+        await _userTodoRef().child(docId).update({
+          'items': updatedItems.map((e) => e.toMap()).toList(),
+          'timestamp': ServerValue.timestamp,
+        });
+      }
     } catch (_) {}
   }
 
   static Future<void> clearAll() async {
     try {
-      final col = _userTodoCollection();
-      final batch = _firestore.batch();
-      final docs = await col.get();
-      for (final d in docs.docs) {
-        batch.delete(d.reference);
+      if (_backendOverride != null) {
+        await _backendOverride!.clearAll();
+      } else {
+        await _userTodoRef().remove();
       }
-      await batch.commit();
       _todoLists.clear();
       _docIds.clear();
+      todoListsNotifier.value = const <TodoList>[];
     } catch (_) {}
+  }
+
+  static void startRealtimeSync() {
+    // Begin listening to Realtime Database changes and keep in-memory cache in sync
+    _subscription?.cancel();
+    try {
+      if (_backendOverride != null) {
+        _subscription = _backendOverride!.watch().listen((listsById) {
+          _todoLists
+            ..clear()
+            ..addAll(listsById.values);
+          _docIds
+            ..clear()
+            ..addAll(listsById.keys);
+          todoListsNotifier.value = List.unmodifiable(_todoLists);
+        });
+      } else {
+        _subscription = _userTodoRef().onValue.listen((event) {
+          final listsById = <String, TodoList>{};
+          final snap = event.snapshot;
+          if (snap.value is Map) {
+            final map = Map<String, dynamic>.from(snap.value as Map);
+            map.forEach((key, value) {
+              if (value is Map) {
+                final data = Map<String, dynamic>.from(value as Map);
+                listsById[key] = TodoList.fromRealtime(data);
+              }
+            });
+          }
+          _todoLists
+            ..clear()
+            ..addAll(listsById.values);
+          _docIds
+            ..clear()
+            ..addAll(listsById.keys);
+          todoListsNotifier.value = List.unmodifiable(_todoLists);
+        });
+      }
+    } catch (_) {}
+  }
+
+  static void stopRealtimeSync() {
+    // Stop the Realtime Database subscription
+    _subscription?.cancel();
+    _subscription = null;
+  }
+
+  static Future<Map<String, TodoList>> _loadFromFirestore() async {
+    // Backward-compatibility: load existing lists from Firestore if RTDB is empty
+    try {
+      final query = await _userTodoCollection()
+          .orderBy('timestamp', descending: true)
+          .get();
+      final result = <String, TodoList>{};
+      for (final d in query.docs) {
+        result[d.id] = TodoList.fromFirestore(d.data());
+      }
+      return result;
+    } catch (_) {
+      return <String, TodoList>{};
+    }
+  }
+
+  static Future<void> _migrateFromFirestoreToRealtime(
+      Map<String, TodoList> lists) async {
+    // One-time migration: copy Firestore lists to Realtime Database under the same IDs
+    final ref = _userTodoRef();
+    final updates = <String, dynamic>{};
+    lists.forEach((id, list) {
+      updates[id] = list.toRealtimeMap();
+    });
+    await ref.update(updates);
+  }
+
+  static String _mapDatabaseError(FirebaseException e) {
+    // Map Realtime Database errors to human-readable messages
+    final code = e.code.toLowerCase();
+    if (code.contains('permission')) return 'Permission denied';
+    if (code.contains('network') || code.contains('disconnected')) {
+      return 'Network error. Please check your internet connection.';
+    }
+    if (code.contains('timeout')) return 'Request timed out. Please retry.';
+    return 'Database error: ${e.message ?? e.code}';
   }
 
   static List<TodoItem> getDefaultSelfCareItems() {
@@ -252,5 +432,82 @@ class TodoStorage {
 
   static String getListTitle(int listNumber) {
     return 'TO-DO LIST $listNumber';
+  }
+
+  static void debugSetBackend(TodoBackend backend) {
+    // Testing hook: swap storage backend with an in-memory fake
+    _backendOverride = backend;
+  }
+}
+
+abstract class TodoBackend {
+  Future<Map<String, TodoList>> load();
+  Stream<Map<String, TodoList>> watch();
+  Future<void> add(TodoList list);
+  Future<void> update(String id, TodoList list);
+  Future<void> updateItems(String id, List<Map<String, dynamic>> items);
+  Future<void> remove(String id);
+  Future<void> clearAll();
+}
+
+class FirestoreBackend implements TodoBackend {
+  @override
+  Future<Map<String, TodoList>> load() async {
+    final query = await TodoStorage._userTodoCollection()
+        .orderBy('timestamp', descending: true)
+        .get();
+    final result = <String, TodoList>{};
+    for (final d in query.docs) {
+      result[d.id] = TodoList.fromFirestore(d.data());
+    }
+    return result;
+  }
+
+  @override
+  Stream<Map<String, TodoList>> watch() {
+    return TodoStorage._userTodoCollection()
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snap) {
+      final out = <String, TodoList>{};
+      for (final d in snap.docs) {
+        out[d.id] = TodoList.fromFirestore(d.data());
+      }
+      return out;
+    });
+  }
+
+  @override
+  Future<void> add(TodoList list) async {
+    await TodoStorage._userTodoCollection().add(list.toFirestore());
+  }
+
+  @override
+  Future<void> clearAll() async {
+    final col = TodoStorage._userTodoCollection();
+    final batch = FirebaseFirestore.instance.batch();
+    final docs = await col.get();
+    for (final d in docs.docs) {
+      batch.delete(d.reference);
+    }
+    await batch.commit();
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    await TodoStorage._userTodoCollection().doc(id).delete();
+  }
+
+  @override
+  Future<void> update(String id, TodoList list) async {
+    await TodoStorage._userTodoCollection().doc(id).update(list.toFirestore());
+  }
+
+  @override
+  Future<void> updateItems(String id, List<Map<String, dynamic>> items) async {
+    await TodoStorage._userTodoCollection().doc(id).update({
+      'items': items,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 }

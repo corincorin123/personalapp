@@ -54,6 +54,7 @@ class DefaultFirebaseOptions {
     authDomain: 'personalapp-b6dee.firebaseapp.com',
     storageBucket: 'personalapp-b6dee.firebasestorage.app',
     measurementId: 'G-26BS4RH606',
+    databaseURL: 'https://personalapp-b6dee-default-rtdb.firebaseio.com',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -62,6 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '41394169133',
     projectId: 'personalapp-b6dee',
     storageBucket: 'personalapp-b6dee.firebasestorage.app',
+    databaseURL: 'https://personalapp-b6dee-default-rtdb.firebaseio.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -71,6 +73,7 @@ class DefaultFirebaseOptions {
     projectId: 'personalapp-b6dee',
     storageBucket: 'personalapp-b6dee.firebasestorage.app',
     iosBundleId: 'com.example.personalApplication',
+    databaseURL: 'https://personalapp-b6dee-default-rtdb.firebaseio.com',
   );
 
 }
