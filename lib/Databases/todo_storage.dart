@@ -153,10 +153,10 @@ class TodoList {
 }
 
 class TodoStorage {
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static FirebaseAuth get _auth => FirebaseAuth.instance;
+  static FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   static const String _databaseUrl = 'https://personalapp-b6dee-default-rtdb.firebaseio.com';
-  static final FirebaseDatabase _rtdb = FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL: _databaseUrl);
+  static FirebaseDatabase get _rtdb => FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL: _databaseUrl);
 
   static final List<TodoList> _todoLists = <TodoList>[];
   static final List<String> _docIds = <String>[];

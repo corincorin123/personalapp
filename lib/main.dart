@@ -14,9 +14,30 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FlutterError.onError = (details) {
+    try {
+      if (details.stack != null) {
+        print(details.stack);
+      }
+    } catch (_) {}
+    print(details.exception);
+  };
+
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    print(error);
+    print(stack);
+    return true;
+  };
+
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    }
+  } catch (e, stack) {
+    print(e);
+    print(stack);
+  }
 
   runApp(const MyApp());
 }

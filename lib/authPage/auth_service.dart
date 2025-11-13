@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 ValueNotifier<AuthService> Service = ValueNotifier(AuthService());
 
 class AuthService {
-  final FirebaseAuth auth = FirebaseAuth.instance;
+  FirebaseAuth get auth => FirebaseAuth.instance;
 
   User? get currentUser => auth.currentUser;
-
+  
   Stream<User?> get authStateChanges => auth.authStateChanges();
 
   Future<UserCredential> signIn({
