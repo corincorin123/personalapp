@@ -116,8 +116,8 @@ class TodoList {
 
     final itemsRaw = (data['items'] as List?) ?? const [];
     final items = itemsRaw
-        .whereType<Map<String, dynamic>>()
-        .map((e) => TodoItem.fromMap(e))
+        .map((e) => e is Map ? TodoItem.fromMap(Map<String, dynamic>.from(e as Map)) : null)
+        .whereType<TodoItem>()
         .toList();
 
     return TodoList(
@@ -139,8 +139,8 @@ class TodoList {
 
     final itemsRaw = (data['items'] as List?) ?? const [];
     final items = itemsRaw
-        .whereType<Map<String, dynamic>>()
-        .map((e) => TodoItem.fromMap(e))
+        .map((e) => e is Map ? TodoItem.fromMap(Map<String, dynamic>.from(e as Map)) : null)
+        .whereType<TodoItem>()
         .toList();
 
     return TodoList(
@@ -168,6 +168,17 @@ class TodoStorage {
 
   static List<TodoList> get todoLists => List.unmodifiable(_todoLists);
 
+  static String? docIdForIndex(int index) {
+    if (index < 0 || index >= _docIds.length) return null;
+    return _docIds[index];
+  }
+
+  static TodoList? listForDocId(String docId) {
+    final idx = _docIds.indexOf(docId);
+    if (idx == -1) return null;
+    return _todoLists[idx];
+  }
+
   static CollectionReference<Map<String, dynamic>> _userTodoCollection() {
     final user = _auth.currentUser;
     if (user == null) {
@@ -193,7 +204,7 @@ class TodoStorage {
       if (_backendOverride != null) {
         listsById = await _backendOverride!.load();
       } else {
-        final snap = await _userTodoRef().orderByChild('timestamp').get();
+        final snap = await _userTodoRef().get();
         listsById = <String, TodoList>{};
         for (final child in snap.children) {
           final key = child.key;
@@ -213,9 +224,11 @@ class TodoStorage {
         }
       }
 
+      final sortedLists = listsById.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _todoLists
         ..clear()
-        ..addAll(listsById.values.toList());
+        ..addAll(sortedLists);
       _docIds
         ..clear()
         ..addAll(listsById.keys.toList());
@@ -253,6 +266,24 @@ class TodoStorage {
   static Future<void> updateTodoList(int index, TodoList todoList) async {
     if (index < 0 || index >= _docIds.length) return;
     final docId = _docIds[index];
+    try {
+      if (_backendOverride != null) {
+        await _backendOverride!.update(docId, todoList);
+      } else {
+        await _userTodoRef().child(docId).update(todoList.toRealtimeMap());
+      }
+      await loadTodoLists();
+    } on FirebaseException catch (e) {
+      throw Exception(_mapDatabaseError(e));
+    } catch (e) {
+      throw Exception(
+        'Connection error. Please check your internet connection and try again.',
+      );
+    }
+  }
+
+  static Future<void> updateTodoListById(String docId, TodoList todoList) async {
+    if (docId.isEmpty) return;
     try {
       if (_backendOverride != null) {
         await _backendOverride!.update(docId, todoList);
@@ -334,9 +365,11 @@ class TodoStorage {
     try {
       if (_backendOverride != null) {
         _subscription = _backendOverride!.watch().listen((listsById) {
+          final sorted = listsById.values.toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           _todoLists
             ..clear()
-            ..addAll(listsById.values);
+            ..addAll(sorted);
           _docIds
             ..clear()
             ..addAll(listsById.keys);
@@ -355,9 +388,11 @@ class TodoStorage {
               }
             });
           }
+          final sorted = listsById.values.toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           _todoLists
             ..clear()
-            ..addAll(listsById.values);
+            ..addAll(sorted);
           _docIds
             ..clear()
             ..addAll(listsById.keys);

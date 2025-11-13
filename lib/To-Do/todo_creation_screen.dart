@@ -3,8 +3,9 @@ import 'package:personal_application/Databases/todo_storage.dart';
 
 class TodoCreationScreen extends StatefulWidget {
   final int? todoListIndex;
+  final String? todoDocId;
 
-  const TodoCreationScreen({super.key, this.todoListIndex});
+  const TodoCreationScreen({super.key, this.todoListIndex, this.todoDocId});
 
   @override
   State<TodoCreationScreen> createState() => _TodoCreationScreenState();
@@ -23,7 +24,18 @@ class _TodoCreationScreenState extends State<TodoCreationScreen> {
   }
 
   void _initializeData() {
-    if (widget.todoListIndex != null) {
+    if (widget.todoDocId != null) {
+      final existingList = TodoStorage.listForDocId(widget.todoDocId!);
+      if (existingList != null) {
+        _nameController.text = existingList.name;
+        _dateController.text = existingList.date;
+        _todoItems = List.from(existingList.items);
+        return;
+      }
+    }
+    if (widget.todoListIndex != null &&
+        widget.todoListIndex! >= 0 &&
+        widget.todoListIndex! < TodoStorage.todoLists.length) {
       final existingList = TodoStorage.todoLists[widget.todoListIndex!];
       _nameController.text = existingList.name;
       _dateController.text = existingList.date;
@@ -62,7 +74,9 @@ class _TodoCreationScreenState extends State<TodoCreationScreen> {
     );
 
     try {
-      if (widget.todoListIndex != null) {
+      if (widget.todoDocId != null && widget.todoDocId!.isNotEmpty) {
+        await TodoStorage.updateTodoListById(widget.todoDocId!, todoList);
+      } else if (widget.todoListIndex != null) {
         await TodoStorage.updateTodoList(widget.todoListIndex!, todoList);
       } else {
         await TodoStorage.addTodoList(todoList);

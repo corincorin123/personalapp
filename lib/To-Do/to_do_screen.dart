@@ -89,10 +89,14 @@ class _ToDoScreenState extends State<ToDoScreen> {
   }
 
   void _editTodoList(int index) {
+    final docId = TodoStorage.docIdForIndex(index);
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TodoCreationScreen(todoListIndex: index),
+        builder: (context) => TodoCreationScreen(
+          todoDocId: docId,
+          todoListIndex: docId == null ? index : null,
+        ),
       ),
     ).then((_) => setState(() {}));
   }
